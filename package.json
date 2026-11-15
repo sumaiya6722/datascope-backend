@@ -1,0 +1,27 @@
+{
+  "name": "datascope-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "node --watch --env-file=.env src/server.js",
+    "start": "node --env-file=.env src/server.js",
+    "test": "node --test",
+    "initialize:first-admin": "node --env-file=.env src/scripts/initialize-first-admin.js",
+    "seed:demo": "node --env-file=.env src/scripts/seed-demo-data.js"
+  },
+  "dependencies": {
+    "@better-auth/mongo-adapter": "^1.7.22",
+    "better-auth": "^1.7.22",
+    "cors": "^2.8.6",
+    "express": "^5.3.0",
+    "mongodb": "~7.8.0",
+    "mongoose": "^9.12.1"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^11.3.0"
+  }
+}
