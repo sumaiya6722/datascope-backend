@@ -10,8 +10,7 @@ import { getRolePermissions } from "./authorization/permissions.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import healthRouter from "./routes/health.js";
 
-export function createApp(frontendUrl, auth, database) {
-  const app = express();
+export function createApp(frontendUrl, auth, database, app = express()) {
 
   app.use(
     cors({

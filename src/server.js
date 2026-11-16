@@ -1,3 +1,4 @@
+import express from "express";
 import { createApp } from "./express-app.js";
 import { createAuth } from "./auth.js";
 import { connectDatabase } from "./config/database.js";
@@ -58,7 +59,7 @@ try {
     secret: authSecret,
     isProduction: process.env.NODE_ENV === "production",
   });
-  const app = createApp(frontendUrl, auth, database);
+  const app = createApp(frontendUrl, auth, database, express());
 
   app.listen(port, () => {
     console.log(`DataScope API listening on http://localhost:${port}`);
