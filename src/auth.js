@@ -2,6 +2,7 @@ import { mongodbAdapter } from "@better-auth/mongo-adapter";
 import { createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth";
 import { getRolePermissions } from "./authorization/permissions.js";
+import { grantDemoDatasetAccessToViewer } from "./auth/permissions.js";
 
 function omitSessionToken(response) {
   if (!response || typeof response !== "object" || response instanceof Response) {
@@ -66,6 +67,13 @@ export function createAuth(database, { baseURL, frontendUrl, secret, isProductio
           defaultValue: "viewer",
           input: false,
         },
+        requestedRole: {
+          type: ["viewer", "dataAnalyst"],
+          required: false,
+          defaultValue: "viewer",
+          input: true,
+          returned: false,
+        },
       },
     },
     session: {
@@ -89,6 +97,48 @@ export function createAuth(database, { baseURL, frontendUrl, secret, isProductio
       after: createAuthMiddleware(async (ctx) => {
         return omitSessionToken(ctx.context.returned);
       }),
+    },
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user) => {
+            // `user` contains only fields marked as input:true (requestedRole)
+            const requested = user.requestedRole;
+            const finalRole = requested === "dataAnalyst" ? "dataAnalyst" : "viewer";
+            // Return user object with the correct role. Better‑Auth expects the hook to return the user data directly.
+            return {
+              ...user,
+              role: finalRole,
+            };
+          },
+          hooks: {
+            before: createAuthMiddleware(async (ctx) => {
+              if (ctx.path === "/sign-up/email") {
+                const requestedRole = ctx.body?.requestedRole;
+
+                console.log("[SIGNUP] Requested role:", requestedRole);
+
+                ctx.body.requestedRole =
+                  requestedRole === "dataAnalyst"
+                    ? "dataAnalyst"
+                    : "viewer";
+              }
+            }),
+
+            after: createAuthMiddleware(async (ctx) => {
+              return omitSessionToken(ctx.context.returned);
+            }),
+          },
+
+          after: async (user) => {
+            if (["viewer", "dataAnalyst"].includes(user.role)) {
+              await grantDemoDatasetAccessToViewer(
+                user.id?.toString?.() ?? user._id?.toString?.()
+              );
+            }
+          },
+        },
+      },
     },
   });
 }

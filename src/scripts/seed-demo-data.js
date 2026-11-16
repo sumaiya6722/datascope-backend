@@ -2,7 +2,7 @@
 import mongoose from "mongoose";
 import { pathToFileURL } from "node:url";
 import { connectDatabase } from "../config/database.js";
-import { Dataset, DatasetField, DatasetRecord } from "../models/index.js";
+import { Dataset, DatasetField, DatasetRecord, DatasetAccessPermission } from "../models/index.js";
 import { faker } from "@faker-js/faker";
 
 // Default configuration – can be overridden via CLI flags
@@ -198,6 +198,30 @@ async function seedRecords(dataset, count, batchSize, generator, extraMaps = nul
 async function seedDemo({ recordCount = DEFAULT_RECORD_COUNT, batchSize = DEFAULT_BATCH_SIZE, reset = false, quiet = false, creatorEmail }) {
   if (!creatorEmail) throw new Error("creatorEmail is required");
   const db = await connectDatabase(process.env.MONGODB_URI);
+  // Find creator user
+  const creator = await db.collection("user").findOne({ email: creatorEmail }, { projection: { _id: 1 } });
+  if (!creator) throw new Error(`No Better‑Auth user found for ${creatorEmail}`);
+  // Ensure demo datasets exist and build a lookup map
+  const datasets = {};
+  for (const def of DEMO_DATASETS) {
+    const ds = await ensureDataset(def, creator._id);
+    datasets[def.slug] = ds;
+  }
+  // Find creator user
+  const creator = await db.collection("user").findOne({ email: creatorEmail }, { projection: { _id: 1 } });
+  if (!creator) throw new Error(`No Better‑Auth user found for ${creatorEmail}`);
+  // Ensure demo datasets exist and build a lookup map
+  const datasets = {};
+  for (const def of DEMO_DATASETS) {
+    const ds = await ensureDataset(def, creator._id);
+    datasets[def.slug] = ds;
+  }
+  // Ensure demo datasets exist and build a lookup map
+  const datasets = {};
+  for (const def of DEMO_DATASETS) {
+    const ds = await ensureDataset(def, creator._id);
+    datasets[def.slug] = ds;
+  }
   const creator = await db.collection("user").findOne({ email: creatorEmail }, { projection: { _id: 1 } });
   if (!creator) throw new Error(`No Better‑Auth user found for ${creatorEmail}`);
 
@@ -211,11 +235,29 @@ async function seedDemo({ recordCount = DEFAULT_RECORD_COUNT, batchSize = DEFAUL
     }
   }
 
-  const datasets = {};
-  for (const def of DEMO_DATASETS) {
-    const ds = await ensureDataset(def, creator._id.toString());
-    datasets[def.slug] = ds;
-    if (!quiet) console.log(`Dataset ${def.name} (${def.slug}) ready – id ${ds._id}`);
+    // Grant read permission to all viewers for newly created demo datasets
+  const viewers = await db.collection("user").find({ role: "viewer" }).project({ _id: 1, email: 1 }).toArray();
+  for (const viewer of viewers) {
+    for (const def of DEMO_DATASETS) {
+      const ds = datasets[def.slug];
+      if (!ds) continue; // safety
+      await DatasetAccessPermission.updateOne(
+        { datasetId: ds._id, userId: viewer._id.toString() },
+        { $addToSet: { permissions: "read" }, $setOnInsert: { grantedBy: null } },
+        { upsert: true }
+      );
+    }
+  }
+  const viewers = await db.collection("user").find({ role: "viewer" }).project({ _id: 1 }).toArray();
+  for (const viewer of viewers) {
+    for (const def of DEMO_DATASETS) {
+      const ds = datasets[def.slug];
+      await DatasetAccessPermission.updateOne(
+        { datasetId: ds._id, userId: viewer._id.toString(), permissions: { $all: ["read"] } },
+        { $setOnInsert: { datasetId: ds._id, userId: viewer._id.toString(), permissions: ["read"], grantedBy: null } },
+        { upsert: true }
+      );
+    }
   }
 
   const customerDef = DEMO_DATASETS.find((d) => d.slug === "customer-directory");
