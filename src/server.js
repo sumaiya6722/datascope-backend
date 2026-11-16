@@ -1,4 +1,4 @@
-import { createApp } from "./app.js";
+import { createApp } from "./express-app.js";
 import { createAuth } from "./auth.js";
 import { connectDatabase } from "./config/database.js";
 import { initializeDataModels } from "./models/index.js";
