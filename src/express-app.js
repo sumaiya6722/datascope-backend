@@ -1,3 +1,4 @@
+
 import cors from "cors";
 import express from "express";
 import { toNodeHandler } from "better-auth/node";
@@ -11,7 +12,6 @@ import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import healthRouter from "./routes/health.js";
 
 export function createApp(frontendUrl, auth, database, app = express()) {
-
   app.use(
     cors({
       origin: frontendUrl,
@@ -20,11 +20,24 @@ export function createApp(frontendUrl, auth, database, app = express()) {
     }),
   );
 
+  // Root endpoint
+  app.get("/", (req, res) => {
+    const databaseConnected = database?.readyState === 1;
+
+    res.status(databaseConnected ? 200 : 503).json({
+      status: databaseConnected ? "ok" : "error",
+      service: "datascope-api",
+      database: databaseConnected ? "connected" : "disconnected",
+    });
+  });
+
   app.all("/api/auth", toNodeHandler(auth));
   app.all("/api/auth/*splat", toNodeHandler(auth));
 
   app.use(express.json());
+
   app.use("/api/health", healthRouter);
+
   app.get("/api/me", requireAuthentication(auth), (req, res) => {
     res.json({
       user: {
@@ -36,10 +49,12 @@ export function createApp(frontendUrl, auth, database, app = express()) {
       },
     });
   });
+
   app.use("/api/datasets", createDatasetRouter(auth, database));
   app.use("/api/analytics", createAnalyticsRouter(auth));
   app.use("/api", createSavedSearchRouter(auth, database));
   app.use("/api/admin", createAdminRouter(auth, database));
+
   app.use(notFoundHandler);
   app.use(errorHandler);
 
