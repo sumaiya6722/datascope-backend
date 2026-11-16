@@ -3,7 +3,7 @@ import { after, before, test } from "node:test";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { ObjectId } from "mongodb";
 import mongoose from "mongoose";
-import { createApp } from "../src/app.js";
+import { createApp } from "../src/express-app.js";
 import {
   initializeDatasetPermissionIndexes,
 } from "../src/authorization/dataset-routes.js";

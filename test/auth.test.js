@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import { after, before, test } from "node:test";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
-import { createApp } from "../src/app.js";
+import { createApp } from "../src/express-app.js";
 import { createAuth } from "../src/auth.js";
 import { getRolePermissions } from "../src/authorization/permissions.js";
 
