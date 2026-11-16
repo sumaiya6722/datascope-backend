@@ -22,7 +22,7 @@ export function createApp(frontendUrl, auth, database, app = express()) {
 
   // Root endpoint
   app.get("/", (req, res) => {
-    const databaseConnected = database?.readyState === 1;
+    const databaseConnected = database?.client?.topology?.isConnected() === true;
 
     res.status(databaseConnected ? 200 : 503).json({
       status: databaseConnected ? "ok" : "error",
