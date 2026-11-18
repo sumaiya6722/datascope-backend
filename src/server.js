@@ -13,9 +13,9 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error("PORT must be an integer between 1 and 65535.");
 }
 
-if (!frontendUrl) {
-  throw new Error("FRONTEND_URL is required to start the backend.");
-}
+// if (!frontendUrl) {
+//   throw new Error("FRONTEND_URL is required to start the backend.");
+// }
 
 let parsedFrontendUrl;
 try {
