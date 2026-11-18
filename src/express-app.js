@@ -11,11 +11,18 @@ import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import healthRouter from "./routes/health.js";
 
 export function createApp(frontendUrl, auth, database, app = express()) {
+  const allowedOrigins = [
+    frontendUrl,
+    "https://datascope-frontend-five.vercel.app",
+    "http://localhost:3000",
+  ].filter(Boolean);
+
   app.use(
     cors({
-      origin: frontendUrl,
+      origin: allowedOrigins,
       credentials: true,
-      methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
+      methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
     }),
   );
 
