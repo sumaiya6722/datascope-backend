@@ -1,311 +1,217 @@
-// Updated seed script for three demo datasets with relationship integrity
 import mongoose from "mongoose";
 import { pathToFileURL } from "node:url";
 import { connectDatabase } from "../config/database.js";
-import { Dataset, DatasetField, DatasetRecord, DatasetAccessPermission } from "../models/index.js";
-import { faker } from "@faker-js/faker";
+import {
+  Dataset,
+  DatasetAccessPermission,
+  DatasetField,
+  DatasetRecord,
+} from "../models/index.js";
 
-// Default configuration – can be overridden via CLI flags
 const DEFAULT_RECORD_COUNT = 100_000;
-const DEFAULT_BATCH_SIZE = 5_000;
+const DEFAULT_BATCH_SIZE = 2_000;
+const MAX_RECORD_COUNT = 1_000_000;
 
-// Deterministic faker seed for reproducibility
-faker.seed(12345);
+const industries = [
+  "Technology", "Manufacturing", "Healthcare", "Finance", "Retail",
+  "Logistics", "Energy", "Education", "Telecommunications", "Agriculture",
+  "Professional Services", "Hospitality",
+];
+const countries = [
+  "France", "Germany", "United States", "Canada", "Japan", "Australia",
+  "Brazil", "India", "United Kingdom", "Spain", "Netherlands", "Singapore",
+];
+const categories = ["Enterprise", "Mid-market", "Small business", "Public sector"];
+const statuses = ["active", "prospect", "under_review", "inactive"];
 
-// Demo dataset definitions
-const DEMO_DATASETS = [
-  {
-    slug: "customer-directory",
-    name: "Customer Directory",
-    description: "A realistic set of 100k customers for demo purposes.",
-    category: "Business",
-    fields: [
-      ["firstName", "First Name", "string", true, true, true, true],
-      ["lastName", "Last Name", "string", true, true, true, true],
-      ["email", "Email", "email", true, true, true, true],
-      ["phone", "Phone", "string", true, true, true, true],
-      ["company", "Company", "string", true, true, true, true],
-      ["industry", "Industry", "string", true, true, true, true],
-      ["city", "City", "string", true, true, true, true],
-      ["country", "Country", "string", true, true, true, true],
-      ["registrationDate", "Registration Date", "date", true, true, true, true],
-      ["status", "Status", "string", true, true, true, true],
-    ],
-    generator: (index) => {
-      const seed = index + 1;
-      faker.seed(seed);
-      return {
-        seedKey: `customer-${String(seed).padStart(6, "0")}`,
-        data: {
-          firstName: faker.person.firstName(),
-          lastName: faker.person.lastName(),
-          email: faker.internet.email(),
-          phone: faker.phone.number("+1-###-###-####"),
-          company: faker.company.name(),
-          industry: faker.commerce.department(),
-          city: faker.location.city(),
-          country: faker.location.country(),
-          registrationDate: faker.date.between({ from: "2015-01-01", to: "2022-12-31" }),
-          status: faker.helpers.arrayElement(["active", "prospect", "under_review", "inactive"]),
-        },
-      };
-    },
-  },
-  {
-    slug: "product-inventory",
-    name: "Product Inventory",
-    description: "A realistic product catalog for demo purposes.",
-    category: "Business",
-    fields: [
-      ["sku", "SKU", "string", true, true, true, true],
-      ["name", "Product Name", "string", true, true, true, true],
-      ["category", "Category", "string", true, true, true, true],
-      ["description", "Description", "string", false, true, false, true],
-      ["price", "Price", "currency", true, true, true, true],
-      ["stockQuantity", "Stock Quantity", "number", true, true, true, true],
-      ["supplier", "Supplier", "string", true, true, true, true],
-      ["status", "Status", "string", true, true, true, true],
-      ["createdAt", "Created At", "date", true, true, true, true],
-    ],
-    generator: (index) => {
-      const seed = index + 1;
-      faker.seed(seed + 1000000);
-      const sku = `SKU-${String(seed).padStart(6, "0")}`;
-      const price = parseFloat(faker.commerce.price(5, 500, 2));
-      return {
-        seedKey: `product-${String(seed).padStart(6, "0")}`,
-        data: {
-          sku,
-          name: faker.commerce.productName(),
-          category: faker.commerce.department(),
-          description: faker.commerce.productDescription(),
-          price,
-          stockQuantity: faker.number.int({ min: 0, max: 1000 }),
-          supplier: faker.company.name(),
-          status: faker.helpers.arrayElement(["available", "discontinued", "backorder"]),
-          createdAt: faker.date.past({ years: 3 }),
-        },
-      };
-    },
-  },
-  {
-    slug: "sales-transactions",
-    name: "Sales Transactions",
-    description: "Synthetic sales transactions linking customers and products.",
-    category: "Business",
-    fields: [
-      ["orderId", "Order ID", "string", true, true, true, true],
-      ["customerId", "Customer ID", "string", true, true, true, true],
-      ["productId", "Product ID", "string", true, true, true, true],
-      ["quantity", "Quantity", "number", true, true, true, true],
-      ["unitPrice", "Unit Price", "currency", true, true, true, true],
-      ["totalPrice", "Total Price", "currency", true, true, true, true],
-      ["paymentMethod", "Payment Method", "string", true, true, true, true],
-      ["transactionDate", "Transaction Date", "date", true, true, true, true],
-      ["status", "Status", "string", true, true, true, true],
-    ],
-    generator: (index, customerMap, productMap) => {
-      const seed = index + 1;
-      faker.seed(seed + 2000000);
-      const customerKeys = Array.from(customerMap.keys());
-      const productKeys = Array.from(productMap.keys());
-      const custKey = customerKeys[seed % customerKeys.length];
-      const prodKey = productKeys[seed % productKeys.length];
-      const customerId = customerMap.get(custKey);
-      const productId = productMap.get(prodKey);
-      const quantity = faker.number.int({ min: 1, max: 20 });
-      const unitPrice = parseFloat(faker.commerce.price(5, 500, 2));
-      return {
-        seedKey: `sale-${String(seed).padStart(6, "0")}`,
-        data: {
-          orderId: `ORD-${String(seed).padStart(8, "0")}`,
-          customerId: customerId?.toString() ?? null,
-          productId: productId?.toString() ?? null,
-          quantity,
-          unitPrice,
-          totalPrice: parseFloat((quantity * unitPrice).toFixed(2)),
-          paymentMethod: faker.helpers.arrayElement(["credit_card", "paypal", "bank_transfer", "cash"]),
-          transactionDate: faker.date.between({ from: "2020-01-01", to: "2023-12-31" }),
-          status: faker.helpers.arrayElement(["completed", "pending", "refunded", "failed"]),
-        },
-      };
-    },
-  },
+const fieldDefinitions = [
+  ["companyName", "Company Name", "string", true, true, true, true],
+  ["industry", "Industry", "string", true, true, true, true],
+  ["country", "Country", "string", true, true, true, true],
+  ["category", "Category", "string", true, true, true, true],
+  ["status", "Status", "string", true, true, true, true],
+  ["revenue", "Revenue", "currency", false, true, true, true],
+  ["employees", "Employees", "number", false, true, true, true],
+  ["contact", "Primary Contact", "object", true, true, false, true],
+  ["createdDate", "Created Date", "date", false, true, true, true],
+  ["city", "City", "string", true, true, true, true],
+  ["accountManager", "Account Manager", "string", true, true, true, false],
+  ["source", "Data Source", "string", true, true, false, false],
 ];
 
-/** Helper: upsert a dataset and its fields */
-async function ensureDataset(def, creatorId) {
+const datasetDefinition = {
+  name: "Business Directory",
+  slug: "business-directory",
+  description: "A deterministic synthetic business directory for DataScope demos and performance evaluation.",
+  category: "Business",
+  dataSource: {
+    name: "DataScope Demo Generator",
+    type: "synthetic",
+    description: "Deterministic fictional records generated locally.",
+  },
+};
+
+function makeRecord(index) {
+  const number = index + 1;
+  const country = countries[number % countries.length];
+  const date = new Date(Date.UTC(2018 + (number % 9), number % 12, 1 + (number % 27)));
+  const revenue = 1_000 + ((number * 7_919) % 99_000);
+
+  return {
+    seedKey: `business-${String(number).padStart(7, "0")}`,
+    data: {
+      companyName: `Company ${String(number).padStart(7, "0")}`,
+      industry: industries[(number * 7) % industries.length],
+      country,
+      category: categories[(number * 3) % categories.length],
+      status: statuses[number % statuses.length],
+      revenue,
+      employees: 5 + ((number * 37) % 49_995),
+      contact: {
+        name: `Contact ${number}`,
+        email: `contact${number}@example.test`,
+        title: "Business Contact",
+      },
+      createdDate: date,
+      city: `City ${(number * 13) % 500}`,
+      accountManager: `Manager ${(number * 11) % 250}`,
+      source: ["CRM", "ERP", "Partner Import", "Manual Entry"][number % 4],
+    },
+  };
+}
+
+function validateSeedOptions(recordCount, batchSize) {
+  if (!Number.isSafeInteger(recordCount) || recordCount < 1 || recordCount > MAX_RECORD_COUNT) {
+    throw new Error(`recordCount must be an integer between 1 and ${MAX_RECORD_COUNT}.`);
+  }
+  if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 10_000) {
+    throw new Error("batchSize must be an integer between 1 and 10,000.");
+  }
+}
+
+/** Add any missing deterministic demo records without deleting existing data. */
+export async function seedSyntheticBusinessData(
+  creatorId,
+  { recordCount = DEFAULT_RECORD_COUNT, batchSize = DEFAULT_BATCH_SIZE } = {},
+) {
+  validateSeedOptions(recordCount, batchSize);
+  if (!creatorId) throw new Error("creatorId is required.");
+  const ownerId = creatorId.toString();
+
+  await Promise.all([
+    Dataset.init(),
+    DatasetAccessPermission.init(),
+    DatasetField.init(),
+    DatasetRecord.init(),
+  ]);
+
   const dataset = await Dataset.findOneAndUpdate(
-    { slug: def.slug },
+    { slug: datasetDefinition.slug },
     {
       $set: {
-        name: def.name,
-        description: def.description,
-        category: def.category,
-        dataSource: { name: "DataScope Demo Generator", type: "synthetic", description: "Demo data" },
-        creatorId,
+        ...datasetDefinition,
+        creatorId: ownerId,
       },
-      $setOnInsert: { slug: def.slug },
     },
-    { upsert: true, returnDocument: "after", runValidators: true },
+    { upsert: true, returnDocument: "after", runValidators: true, setDefaultsOnInsert: true },
   );
 
   await DatasetField.bulkWrite(
-    def.fields.map(([name, label, dataType, searchable, filterable, sortable, visible]) => ({
+    fieldDefinitions.map(([name, label, dataType, searchable, filterable, sortable, visibleByDefault]) => ({
       updateOne: {
         filter: { datasetId: dataset._id, name },
-        update: { $set: { label, dataType, searchable, filterable, sortable, visibleByDefault: visible }, $setOnInsert: { datasetId: dataset._id, name } },
+        update: {
+          $set: { label, dataType, searchable, filterable, sortable, visibleByDefault },
+          $setOnInsert: { datasetId: dataset._id, name },
+        },
         upsert: true,
       },
     })),
     { ordered: false },
   );
-  return dataset;
+
+  let insertedCount = 0;
+  for (let start = 0; start < recordCount; start += batchSize) {
+    const end = Math.min(start + batchSize, recordCount);
+    const operations = [];
+    for (let index = start; index < end; index += 1) {
+      const record = makeRecord(index);
+      operations.push({
+        updateOne: {
+          filter: { datasetId: dataset._id, seedKey: record.seedKey },
+          update: { $setOnInsert: { datasetId: dataset._id, ...record } },
+          upsert: true,
+        },
+      });
+    }
+    if (operations.length) {
+      const result = await DatasetRecord.bulkWrite(operations, { ordered: false });
+      insertedCount += result.upsertedCount;
+    }
+  }
+
+  const totalRecords = await DatasetRecord.countDocuments({ datasetId: dataset._id });
+  await Dataset.updateOne({ _id: dataset._id }, { $set: { totalRecords } });
+
+  const viewers = await mongoose.connection.db
+    .collection("user")
+    .find({ role: "viewer" }, { projection: { _id: 1 } })
+    .toArray();
+  if (viewers.length) {
+    await DatasetAccessPermission.bulkWrite(
+      viewers.map((viewer) => ({
+        updateOne: {
+          filter: { datasetId: dataset._id, userId: viewer._id.toString() },
+          update: {
+            $addToSet: { permissions: "read" },
+            $setOnInsert: { grantedBy: null },
+          },
+          upsert: true,
+        },
+      })),
+      { ordered: false },
+    );
+  }
+
+  return { dataset, insertedCount, totalRecords };
 }
 
-/** Helper: bulk‑insert records for a dataset, returning a map seedKey→_id */
-async function seedRecords(dataset, count, batchSize, generator, extraMaps = null) {
-  const existing = new Set(
-    await DatasetRecord.collection.distinct("seedKey", { datasetId: dataset._id, seedKey: { $type: "string" } })
-  );
-  let inserted = 0;
-  const idMap = new Map();
-  for (let start = 0; start < count; start += batchSize) {
-    const batchEnd = Math.min(start + batchSize, count);
-    const docs = [];
-    for (let i = start; i < batchEnd; i++) {
-      const rec = extraMaps ? generator(i, ...extraMaps) : generator(i);
-      if (!existing.has(rec.seedKey)) {
-        docs.push({ datasetId: dataset._id, seedKey: rec.seedKey, data: rec.data });
-      }
-    }
-    if (docs.length) {
-      const res = await DatasetRecord.insertMany(docs, { ordered: false });
-      inserted += res.length;
-      for (let i = 0; i < res.length; i++) {
-        idMap.set(docs[i].seedKey, res[i]._id);
-      }
-    }
-  }
-  const allRecords = await DatasetRecord.find({ datasetId: dataset._id, seedKey: { $regex: `^${dataset.slug}` } }, { seedKey: 1, _id: 1 });
-  for (const r of allRecords) {
-    idMap.set(r.seedKey, r._id);
-  }
-  return { inserted, idMap };
-}
-
-/** Main seeding workflow */
-async function seedDemo({ recordCount = DEFAULT_RECORD_COUNT, batchSize = DEFAULT_BATCH_SIZE, reset = false, quiet = false, creatorEmail }) {
-  if (!creatorEmail) throw new Error("creatorEmail is required");
-  const db = await connectDatabase(process.env.MONGODB_URI);
-  // Find creator user
-  const creator = await db.collection("user").findOne({ email: creatorEmail }, { projection: { _id: 1 } });
-  if (!creator) throw new Error(`No Better‑Auth user found for ${creatorEmail}`);
-  // Ensure demo datasets exist and build a lookup map
-  const datasets = {};
-  for (const def of DEMO_DATASETS) {
-    const ds = await ensureDataset(def, creator._id);
-    datasets[def.slug] = ds;
-  }
-  // Find creator user
-  const creator = await db.collection("user").findOne({ email: creatorEmail }, { projection: { _id: 1 } });
-  if (!creator) throw new Error(`No Better‑Auth user found for ${creatorEmail}`);
-  // Ensure demo datasets exist and build a lookup map
-  const datasets = {};
-  for (const def of DEMO_DATASETS) {
-    const ds = await ensureDataset(def, creator._id);
-    datasets[def.slug] = ds;
-  }
-  // Ensure demo datasets exist and build a lookup map
-  const datasets = {};
-  for (const def of DEMO_DATASETS) {
-    const ds = await ensureDataset(def, creator._id);
-    datasets[def.slug] = ds;
-  }
-  const creator = await db.collection("user").findOne({ email: creatorEmail }, { projection: { _id: 1 } });
-  if (!creator) throw new Error(`No Better‑Auth user found for ${creatorEmail}`);
-
-  if (reset) {
-    for (const def of DEMO_DATASETS) {
-      const ds = await Dataset.findOne({ slug: def.slug });
-      if (ds) {
-        const delResult = await DatasetRecord.deleteMany({ datasetId: ds._id, seedKey: { $regex: `^${def.slug}` } });
-        if (!quiet) console.log(`Reset ${delResult.deletedCount} records from ${def.slug}`);
-      }
-    }
-  }
-
-    // Grant read permission to all viewers for newly created demo datasets
-  const viewers = await db.collection("user").find({ role: "viewer" }).project({ _id: 1, email: 1 }).toArray();
-  for (const viewer of viewers) {
-    for (const def of DEMO_DATASETS) {
-      const ds = datasets[def.slug];
-      if (!ds) continue; // safety
-      await DatasetAccessPermission.updateOne(
-        { datasetId: ds._id, userId: viewer._id.toString() },
-        { $addToSet: { permissions: "read" }, $setOnInsert: { grantedBy: null } },
-        { upsert: true }
-      );
-    }
-  }
-  const viewers = await db.collection("user").find({ role: "viewer" }).project({ _id: 1 }).toArray();
-  for (const viewer of viewers) {
-    for (const def of DEMO_DATASETS) {
-      const ds = datasets[def.slug];
-      await DatasetAccessPermission.updateOne(
-        { datasetId: ds._id, userId: viewer._id.toString(), permissions: { $all: ["read"] } },
-        { $setOnInsert: { datasetId: ds._id, userId: viewer._id.toString(), permissions: ["read"], grantedBy: null } },
-        { upsert: true }
-      );
-    }
-  }
-
-  const customerDef = DEMO_DATASETS.find((d) => d.slug === "customer-directory");
-  const productDef = DEMO_DATASETS.find((d) => d.slug === "product-inventory");
-  const customerResult = await seedRecords(datasets[customerDef.slug], recordCount, batchSize, customerDef.generator);
-  const productResult = await seedRecords(datasets[productDef.slug], recordCount, batchSize, productDef.generator);
-  if (!quiet) {
-    console.log(`Customers inserted: ${customerResult.inserted}`);
-    console.log(`Products inserted: ${productResult.inserted}`);
-  }
-  const customerMap = customerResult.idMap;
-  const productMap = productResult.idMap;
-
-  const salesDef = DEMO_DATASETS.find((d) => d.slug === "sales-transactions");
-  const salesResult = await seedRecords(
-    datasets[salesDef.slug],
-    recordCount,
-    batchSize,
-    salesDef.generator,
-    [customerMap, productMap]
-  );
-  if (!quiet) console.log(`Sales inserted: ${salesResult.inserted}`);
-
-  for (const def of DEMO_DATASETS) {
-    const cnt = await DatasetRecord.countDocuments({ datasetId: datasets[def.slug]._id });
-    await Dataset.updateOne({ _id: datasets[def.slug]._id }, { $set: { totalRecords: cnt } });
-    if (!quiet) console.log(`Dataset ${def.slug} now has ${cnt} records.`);
-  }
-
-  await mongoose.disconnect();
-  return { inserted: { customers: customerResult.inserted, products: productResult.inserted, sales: salesResult.inserted } };
-}
-
-// CLI handling
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+async function runCli() {
   const args = process.argv.slice(2);
-  const recordCount = parseInt(args[args.indexOf("--size") + 1] || DEFAULT_RECORD_COUNT, 10);
-  const batchSize = parseInt(args[args.indexOf("--batch") + 1] || DEFAULT_BATCH_SIZE, 10);
-  const reset = args.includes("--reset");
-  const quiet = args.includes("--quiet");
-  const emailIdx = args.indexOf("--creator-email");
-  const creatorEmail = emailIdx >= 0 ? args[emailIdx + 1] : "";
+  const sizeIndex = args.indexOf("--size");
+  const batchIndex = args.indexOf("--batch");
+  const emailIndex = args.indexOf("--creator-email");
+  const recordCount = sizeIndex >= 0 ? Number(args[sizeIndex + 1]) : DEFAULT_RECORD_COUNT;
+  const batchSize = batchIndex >= 0 ? Number(args[batchIndex + 1]) : DEFAULT_BATCH_SIZE;
+  const creatorEmail = emailIndex >= 0 ? args[emailIndex + 1]?.trim() : "";
+
   if (!creatorEmail) {
-    console.error("Usage: npm run seed:demo -- --creator-email <admin@email> [--size N] [--batch B] [--reset] [--quiet]");
-    process.exit(1);
+    throw new Error("Usage: npm run seed:demo -- --creator-email <registered-email> [--size N] [--batch N]");
   }
-  seedDemo({ recordCount, batchSize, reset, quiet, creatorEmail })
-    .then((res) => console.log("Seeding completed", res))
-    .catch((e) => { console.error("Seeding error", e); process.exitCode = 1; })
-    .finally(() => mongoose.disconnect());
+  validateSeedOptions(recordCount, batchSize);
+
+  const database = await connectDatabase(process.env.MONGODB_URI);
+  const user = await database.collection("user").findOne(
+    { email: creatorEmail },
+    { projection: { _id: 1 } },
+  );
+  if (!user) throw new Error("No registered user matches --creator-email.");
+
+  const result = await seedSyntheticBusinessData(user._id, { recordCount, batchSize });
+  console.log(JSON.stringify({
+    datasetId: result.dataset._id.toString(),
+    insertedCount: result.insertedCount,
+    totalRecords: result.totalRecords,
+  }, null, 2));
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  runCli()
+    .catch((error) => {
+      console.error(`Seeding failed: ${error.message}`);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await mongoose.disconnect();
+    });
 }

@@ -91,7 +91,7 @@ before(async () => {
   await DatasetRecord.init();
 
   const auth = createAuth(database, {
-    baseURL: "http://localhost:4000",
+    baseURL: "http://localhost:5000",
     frontendUrl,
     secret,
     isProduction: false,

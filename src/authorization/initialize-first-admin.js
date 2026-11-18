@@ -1,3 +1,5 @@
+import { ROLES } from "./permissions.js";
+
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -25,7 +27,7 @@ export async function initializeFirstAdministrator(database, email) {
   }
 
   if (!existingClaim) {
-    if (await database.collection("user").countDocuments({ role: "administrator" })) {
+    if (await database.collection("user").countDocuments({ role: ROLES.ADMINISTRATOR })) {
       throw new Error("An Administrator already exists. The first-admin initializer can only run once.");
     }
 
@@ -47,13 +49,13 @@ export async function initializeFirstAdministrator(database, email) {
     }
   }
 
-  if (user.role === "administrator") {
+  if (user.role === ROLES.ADMINISTRATOR) {
     return { id: userId, email: user.email };
   }
 
   const result = await database.collection("user").updateOne(
-    { _id: user._id, role: { $ne: "administrator" } },
-    { $set: { role: "administrator", updatedAt: new Date() } },
+    { _id: user._id, role: { $ne: ROLES.ADMINISTRATOR } },
+    { $set: { role: ROLES.ADMINISTRATOR, updatedAt: new Date() } },
   );
 
   if (!result.matchedCount) {
@@ -61,7 +63,7 @@ export async function initializeFirstAdministrator(database, email) {
       { _id: user._id },
       { projection: { role: 1 } },
     );
-    if (updatedUser?.role !== "administrator") {
+    if (updatedUser?.role !== ROLES.ADMINISTRATOR) {
       throw new Error("The selected user could not be promoted.");
     }
   }

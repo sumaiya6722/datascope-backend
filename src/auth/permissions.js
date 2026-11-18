@@ -2,8 +2,9 @@
 import { Dataset } from "../models/dataset.js";
 import { DatasetAccessPermission } from "../models/dataset-access-permission.js";
 
-// Slugs of the three demo datasets that every Viewer should be able to read
+// Demo datasets that every new Viewer should be able to read
 const DEMO_SLUGS = [
+  "business-directory",
   "customer-directory",
   "product-inventory",
   "sales-transactions",

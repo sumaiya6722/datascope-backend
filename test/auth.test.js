@@ -173,6 +173,19 @@ test("registration, login, sessions, logout, and authorization", async () => {
   assert.equal(loggedInSession.response.status, 200);
   assert.equal(loggedInSession.body.user.email, email);
   assert.equal("token" in loggedInSession.body.session, false);
+
+  const analystRegistration = await request("/api/auth/sign-up/email", {
+    method: "POST",
+    body: {
+      name: "Requested Analyst",
+      email: "analyst-selection@datascope.test",
+      password,
+      requestedRole: "dataAnalyst",
+    },
+  });
+  assert.equal(analystRegistration.response.status, 200);
+  assert.equal(analystRegistration.body.user.role, "dataAnalyst");
+  assert.ok(analystRegistration.body.user.permissions.includes("dataset:search:advanced"));
 });
 
 test("production auth cookies are secure and HTTP-only", async () => {

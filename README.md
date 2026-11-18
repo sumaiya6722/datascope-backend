@@ -17,7 +17,7 @@ Built with Node.js, Express 5, MongoDB, and [Better Auth](https://www.better-aut
 - [Seeding demo data](#seeding-demo-data)
 - [Testing](#testing)
 - [Security notes](#security-notes)
-- [Known issues](#known-issues)
+- [Current limitations](#current-limitations)
 
 ## Features
 
@@ -33,7 +33,7 @@ Built with Node.js, Express 5, MongoDB, and [Better Auth](https://www.better-aut
 - **Export**: JSON export, plus CSV export of selected or filtered records.
 - **Analytics**: record counts by category and status, data growth, search activity, and most-used filters.
 - **Admin tools**: user role management and dataset permission management.
-- **Demo data seeder**: generates up to 300,000 deterministic synthetic records across three related datasets.
+- **Demo data seeder**: generates 100,000 deterministic synthetic business records by default (configurable up to 1,000,000).
 
 ## Tech stack
 
@@ -218,7 +218,7 @@ Only `viewer` and `dataAnalyst` are honored. Anything else, including attempts t
 1. **Role permissions** decide *what kind* of action a user may perform.
 2. **Dataset grants** (`read`, `export`) decide *which datasets* a non-admin may touch. Administrators bypass dataset grants.
 
-New `viewer` and `dataAnalyst` accounts are automatically granted `read` access to the three demo datasets (`customer-directory`, `product-inventory`, `sales-transactions`) if those exist.
+New `viewer` and `dataAnalyst` accounts are automatically granted `read` access to the demo datasets (`business-directory`, `customer-directory`, `product-inventory`, `sales-transactions`) if those exist. Running the seeder also grants existing Viewer accounts read access to the seeded business directory.
 
 ## API reference
 
@@ -407,27 +407,23 @@ Better Auth manages its own collections (`user`, `session`, `account`, `verifica
 
 ## Seeding demo data
 
-The seeder creates three linked, deterministic datasets (faker is seeded, so results are reproducible):
+The seeder creates one deterministic business directory for search, filter, and pagination evaluation:
 
 | Dataset (slug) | Contents |
 | --- | --- |
-| `customer-directory` | Names, email, phone, company, industry, city, country, registration date, status |
-| `product-inventory` | SKU, name, category, description, price, stock, supplier, status |
-| `sales-transactions` | Orders that reference real customer and product records, with quantity, prices, payment method, date, status |
+| `business-directory` | Company, industry, country, category, status, revenue, employees, contacts, dates, city, manager, source |
 
 ```bash
-npm run seed:demo -- --creator-email admin@example.com [--size 100000] [--batch 5000] [--reset] [--quiet]
+npm run seed:demo -- --creator-email admin@example.com [--size 100000] [--batch 2000]
 ```
 
 | Flag | Description |
 | --- | --- |
 | `--creator-email` | **Required.** Email of an existing user, recorded as the datasets' creator. |
-| `--size` | Records per dataset. Default `100000` (300,000 in total). |
-| `--batch` | Insert batch size. Default `5000`. |
-| `--reset` | Delete previously seeded records first. |
-| `--quiet` | Suppress progress output. |
+| `--size` | Record count. Default `100000`; maximum `1000000`. |
+| `--batch` | Upsert batch size. Default `2000`; maximum `10000`. |
 
-Records carry a `seedKey`, so re-running the seeder skips records that already exist. Existing `viewer` users are granted `read` access to the demo datasets.
+Records carry a stable `seedKey`, so re-running the seeder fills missing records without deleting or duplicating existing seed rows. Existing `viewer` users are granted `read` access to this dataset. The dataset defines 12 fields used by the Data Explorer and MongoDB text index.
 
 ## Testing
 
@@ -442,6 +438,7 @@ Tests use Node's built-in runner and an in-memory MongoDB (`mongodb-memory-serve
 | `test/auth.test.js` | Registration, login, sessions, logout, secure production cookies |
 | `test/authorization.test.js` | Role matrix, first-admin initialization, dataset-scoped access, filter validation, saved views and history, dataset management, record retrieval |
 | `test/models.test.js` | Model registration and the seed workflow |
+| `test/authorization-unit.test.js` | Role capabilities, validated filter construction, sorting, and safe seeder import |
 
 ## Security notes
 
@@ -452,10 +449,10 @@ Tests use Node's built-in runner and an in-memory MongoDB (`mongodb-memory-serve
 - CSV exports neutralize spreadsheet formula injection.
 - `.env` is git-ignored. Never commit it, and rotate any secret that has been shared.
 
-## Known issues
+## Current limitations
 
-These were found while documenting the code. Remove this section once they are fixed.
-
-1. **`npm run seed:demo` fails to start.** `src/scripts/seed-demo-data.js` redeclares `creator`, `datasets`, and `viewers` several times inside `seedDemo()`, which is a `SyntaxError` (`Identifier 'creator' has already been declared`).
-2. **`test/models.test.js` cannot load the seed script.** It imports `seedSyntheticBusinessData`, which the current seed script no longer exports, and still expects a single 100,000-record dataset.
-3. **`text` search mode does not work on the demo datasets.** It requires searchable `companyName`, `industry`, `country`, `category`, and `contact` fields, which none of the three demo datasets define, so requests return `400`.
+- CSV exports are synchronous and capped at 5,000 records; background export jobs and streamed downloads are not implemented.
+- Record history and relationships have models but no APIs or detail-page UI.
+- MongoDB regex substring search is not a substitute for an indexed trigram search and may be expensive for broad queries.
+- The configured data store remains MongoDB/Mongoose. The supplied platform spec's PostgreSQL/Drizzle requirement is not met, by explicit user direction.
+- Integration and seed tests require a working `mongod` process. This audit environment rejected that child process, so those database-backed tests were not verified here.

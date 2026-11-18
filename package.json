@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "node --watch --env-file=.env src/server.js",
     "start": "node --env-file=.env src/server.js",
-    "test": "node --test",
+    "test": "node --test test/*.test.js",
     "initialize:first-admin": "node --env-file=.env src/scripts/initialize-first-admin.js",
     "seed:demo": "node --env-file=.env src/scripts/seed-demo-data.js"
   },
