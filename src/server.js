@@ -6,6 +6,7 @@ import { initializeDataModels } from "./models/index.js";
 
 const port = Number(process.env.PORT ?? 5000);
 const frontendUrl = process.env.FRONTEND_URL;
+console.log('frontend url', frontendUrl);
 const authUrl = process.env.BETTER_AUTH_URL;
 const authSecret = process.env.BETTER_AUTH_SECRET;
 
@@ -13,9 +14,9 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error("PORT must be an integer between 1 and 65535.");
 }
 
-// if (!frontendUrl) {
-//   throw new Error("FRONTEND_URL is required to start the backend.");
-// }
+if (!frontendUrl) {
+  throw new Error("FRONTEND_URL is required to start the backend.");
+}
 
 let parsedFrontendUrl;
 try {
