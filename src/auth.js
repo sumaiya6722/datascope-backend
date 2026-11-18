@@ -110,7 +110,7 @@ export function createAuth(
       useSecureCookies: isProduction,
       defaultCookieAttributes: {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: isProduction ? "none" : "lax",
         secure: isProduction,
       },
     },
@@ -157,7 +157,7 @@ export function createAuth(
             if ([ROLES.VIEWER, ROLES.DATA_ANALYST].includes(user.role)) {
               await grantDemoDatasetAccessToViewer(
                 user.id?.toString?.() ??
-                  user._id?.toString?.()
+                user._id?.toString?.()
               );
             }
           },
