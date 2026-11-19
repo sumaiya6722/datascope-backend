@@ -23,7 +23,7 @@ Built with Node.js, Express 5, MongoDB, and [Better Auth](https://www.better-aut
 
 - **Authentication**: email/password and Google OAuth via Better Auth, using HTTP-only session cookies.
 - **Role-based access control**: three roles (`viewer`, `dataAnalyst`, `administrator`) with distinct capabilities.
-- **Per-dataset grants**: non-admin users can only see datasets they have been explicitly granted (`read`, `export`).
+- **Per-dataset grants**: non-admin users can only read/export datasets they have been explicitly granted (`read`, `export`); grants are checked on protected requests so revocation takes effect on the next request.
 - **Flexible datasets**: records are schema-less JSON, described by per-dataset field definitions that control what is searchable, filterable, sortable, and visible by default.
 - **Search**: partial, exact, and MongoDB full-text modes.
 - **Typed filters**: string, number/currency, date, and boolean operators, combined with AND.
@@ -52,7 +52,7 @@ Built with Node.js, Express 5, MongoDB, and [Better Auth](https://www.better-aut
 datascope-backend/
 ├── src/
 │   ├── server.js                      # Entry point: validates env, connects DB, starts the server
-│   ├── app.js                         # Express app: CORS, routers, error handling
+│   ├── express-app.js                 # Express app: CORS, routers, error handling
 │   ├── auth.js                        # Better Auth configuration (providers, roles, hooks)
 │   ├── config/
 │   │   └── database.js                # MongoDB connection (database name: "datascope")
@@ -154,7 +154,7 @@ This can only succeed **once**: it records a claim in the `authorizationBootstra
 | Variable | Required | Description |
 | --- | --- | --- |
 | `PORT` | No | Port to listen on. Defaults to `5000`. |
-| `FRONTEND_URL` | Yes | Origin of the frontend, e.g. `http://localhost:3000`. Used for CORS and as a Better Auth trusted origin. Must be an `http(s)` origin with **no path and no trailing slash**. |
+| `FRONTEND_URL` | Yes | Frontend origin, e.g. `http://localhost:3000`; used as a Better Auth trusted origin. Must be an `http(s)` origin with **no path and no trailing slash**. CORS also allows the deployed frontend and localhost origins. |
 | `BETTER_AUTH_URL` | Yes | Public origin of this API, e.g. `http://localhost:5000`. Same format rules as `FRONTEND_URL`. |
 | `BETTER_AUTH_SECRET` | Yes | Signing secret, at least 32 characters. Startup fails if it is shorter or contains the words "replace" or "generate". |
 | `MONGODB_URI` | Yes | MongoDB connection string. The database name `datascope` is set in code. |
@@ -194,7 +194,7 @@ Sign-up accepts an optional `requestedRole`:
 }
 ```
 
-Only `viewer` and `dataAnalyst` are honored. Anything else, including attempts to request `administrator`, falls back to `viewer`.
+Only `viewer` and `dataAnalyst` are accepted as requested roles. Anything else, including attempts to request `administrator`, falls back to `viewer`. The administrator role is assigned only by the first-admin initializer.
 
 ### Permission matrix
 
@@ -218,7 +218,7 @@ Only `viewer` and `dataAnalyst` are honored. Anything else, including attempts t
 1. **Role permissions** decide *what kind* of action a user may perform.
 2. **Dataset grants** (`read`, `export`) decide *which datasets* a non-admin may touch. Administrators bypass dataset grants.
 
-New `viewer` and `dataAnalyst` accounts are automatically granted `read` access to the demo datasets (`business-directory`, `customer-directory`, `product-inventory`, `sales-transactions`) if those exist. Running the seeder also grants existing Viewer accounts read access to the seeded business directory.
+New `viewer` and `dataAnalyst` accounts are automatically granted `read` access to the demo datasets (`business-directory`, `customer-directory`, `product-inventory`, `sales-transactions`) if those exist. Running the seeder also grants existing Viewer accounts read access to the seeded business directory. Export access is not automatically granted.
 
 ## API reference
 
